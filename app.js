@@ -56,7 +56,7 @@ async function processBatch(wallets) {
       }
 
       if (statusData.status === 'completed') {
-        console.log(JSON.stringify(statusData.results, null, 2))
+        // console.log(JSON.stringify(statusData.results, null, 2))
         return statusData.results;
       }
 
@@ -99,7 +99,7 @@ const scrapeScene = new WizardScene(
       batches.push(wallets.slice(i, i + batchSize));
     }
 
-    console.log(`Created ${batches.length} batches for processing.`);
+    // console.log(`Created ${batches.length} batches for processing.`);
 
     // Notify the user about the processing time
     await ctx.reply('Recibimos las wallets. Por favor espera, esto puede tomar unos minutos mientras procesamos los datos.');
@@ -114,12 +114,12 @@ const scrapeScene = new WizardScene(
 
       for (let i = 0; i < totalBatches; i++) {
       const batch = batches[i];
-      console.log(`Processing batch: ${JSON.stringify(batch)}`);
+      // console.log(`Processing batch: ${JSON.stringify(batch)}`);
       
       const batchResults = await processBatch(batch);
       
       if (!batchResults || batchResults.length === 0) {
-        console.log(`No results returned for batch: ${JSON.stringify(batch)}`);
+        // console.log(`No results returned for batch: ${JSON.stringify(batch)}`);
         continue;
       }
       
@@ -150,9 +150,9 @@ const scrapeScene = new WizardScene(
         general_performance.net_sol >= config.netPL &&
         overall_mean_delta / 60 >= config.avgTradingTime; // Convert seconds to minutes
       
-        console.log(
-        `Wallet: ${result.wallet_address}, Valid: ${isValid}, DaysAgo: ${daysAgo}, WinRate: ${closed_trades_overview.win_rate_percent}, NetPL: ${general_performance.net_sol}, AvgTradingTime: ${overall_mean_delta / 60}`
-        );
+        // console.log(
+        // `Wallet: ${result.wallet_address}, Valid: ${isValid}, DaysAgo: ${daysAgo}, WinRate: ${closed_trades_overview.win_rate_percent}, NetPL: ${general_performance.net_sol}, AvgTradingTime: ${overall_mean_delta / 60}`
+        // );
       
         return isValid;
       });
@@ -181,7 +181,7 @@ const scrapeScene = new WizardScene(
         )
         .join('\n\n');
       
-      console.log('Final valid results:', results); // Log final valid results for debugging
+      // console.log('Final valid results:', results); // Log final valid results for debugging
       await ctx.reply(`✅ *Resultados procesados:*\n\n${responseText}`, { parse_mode: 'Markdown' });
       }
       
