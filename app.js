@@ -36,7 +36,7 @@ function saveConditions(conditions) {
 let userConditions = readConditions();
 
 // Función para procesar un batch de wallets
-async function processBatch(wallets) {
+async function processBatch(wallets, ctx) {
   try {
     const batchResponse = await axios.post(
       'https://api.dedge.pro/process_wallet_batch',
@@ -56,17 +56,39 @@ async function processBatch(wallets) {
       }
 
       if (statusData.status === 'completed') {
-        // console.log(JSON.stringify(statusData.results, null, 2))
         return statusData.results;
       }
 
       if (statusData.status === 'error') {
-        console.error('Error en la API:', statusData.error);
+        if (statusData.error === 'Daily limit exceeded for motus. Maximum 400 requests per day.') {
+          await ctx.reply(
+            '⚠️ *Límite diario excedido:*\n' +
+            'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera a que se restablezca el límite o intenta nuevamente mañana.',
+            { parse_mode: 'Markdown' }
+          );
+        } else {
+          console.error('Error en la API:', statusData.error);
+        }
         return [];
       }
     }
   } catch (error) {
-    console.error('Error al procesar el batch:', error.response?.data || error.message);
+    if (
+      error.response?.data?.detail === 'Daily limit exceeded for motus. Maximum 400 requests per day.'
+    ) {
+      await ctx.reply(
+        '⚠️ *Límite diario excedido:*\n' +
+        'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera a que se restablezca el límite o intenta nuevamente mañana.',
+        { parse_mode: 'Markdown' }
+      );
+    } else {
+      console.error('Error al procesar el batch:', error.response?.data || error.message);
+      await ctx.reply(
+        '❌ *Error al procesar el batch:*\n' +
+        `${error.message || 'Ocurrió un error inesperado.'}`,
+        { parse_mode: 'Markdown' }
+      );
+    }
     return [];
   }
 }
@@ -116,8 +138,8 @@ const scrapeScene = new WizardScene(
       const batch = batches[i];
       // console.log(`Processing batch: ${JSON.stringify(batch)}`);
       
-      const batchResults = await processBatch(batch);
-      
+      const batchResults = await processBatch(batch, ctx);
+            
       if (!batchResults || batchResults.length === 0) {
         // console.log(`No results returned for batch: ${JSON.stringify(batch)}`);
         continue;
