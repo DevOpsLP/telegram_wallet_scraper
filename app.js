@@ -110,72 +110,79 @@ const scrapeScene = new WizardScene(
     // Process batches asynchronously
     setImmediate(async () => {
       const results = [];
+      const totalBatches = batches.length;
 
-      for (const batch of batches) {
-        console.log(`Processing batch: ${JSON.stringify(batch)}`);
+      for (let i = 0; i < totalBatches; i++) {
+      const batch = batches[i];
+      console.log(`Processing batch: ${JSON.stringify(batch)}`);
       
-        const batchResults = await processBatch(batch);
+      const batchResults = await processBatch(batch);
       
-        if (!batchResults || batchResults.length === 0) {
-          console.log(`No results returned for batch: ${JSON.stringify(batch)}`);
-          continue;
+      if (!batchResults || batchResults.length === 0) {
+        console.log(`No results returned for batch: ${JSON.stringify(batch)}`);
+        continue;
+      }
+      
+      // Filter valid results based on user conditions
+      const validResults = batchResults.filter((result) => {
+        if (
+        !result.summary ||
+        !result.summary.general_performance ||
+        !result.summary.general_performance.last_trade_timestamp ||
+        !result.summary.deltas
+        ) {
+        return false;
         }
       
-        // Filter valid results based on user conditions
-        const validResults = batchResults.filter((result) => {
-          if (
-            !result.summary ||
-            !result.summary.general_performance ||
-            !result.summary.general_performance.last_trade_timestamp ||
-            !result.summary.deltas
-          ) {
-            return false;
-          }
-        
-          const {
-            summary: { general_performance, closed_trades_overview, deltas }
-          } = result;
-        
-          const { last_trade_timestamp } = general_performance;
-          const { overall_mean_delta } = deltas;
-        
-          const lastTradeDate = new Date(last_trade_timestamp);
-          const daysAgo = (new Date() - lastTradeDate) / (1000 * 60 * 60 * 24); // Convert to days
-        
-          const isValid =
-            daysAgo <= config.lastTradeDays &&
-            closed_trades_overview.win_rate_percent >= config.winRate &&
-            general_performance.net_sol >= config.netPL &&
-            overall_mean_delta / 60 >= config.avgTradingTime; // Convert seconds to minutes
-        
-          console.log(
-            `Wallet: ${result.wallet_address}, Valid: ${isValid}, DaysAgo: ${daysAgo}, WinRate: ${closed_trades_overview.win_rate_percent}, NetPL: ${general_performance.net_sol}, AvgTradingTime: ${overall_mean_delta / 60}`
-          );
-        
-          return isValid;
-        });
-        
-        
-        results.push(...validResults);
+        const {
+        summary: { general_performance, closed_trades_overview, deltas }
+        } = result;
+      
+        const { last_trade_timestamp } = general_performance;
+        const { overall_mean_delta } = deltas;
+      
+        const lastTradeDate = new Date(last_trade_timestamp);
+        const daysAgo = (new Date() - lastTradeDate) / (1000 * 60 * 60 * 24); // Convert to days
+      
+        const isValid =
+        daysAgo <= config.lastTradeDays &&
+        closed_trades_overview.win_rate_percent >= config.winRate &&
+        general_performance.net_sol >= config.netPL &&
+        overall_mean_delta / 60 >= config.avgTradingTime; // Convert seconds to minutes
+      
+        console.log(
+        `Wallet: ${result.wallet_address}, Valid: ${isValid}, DaysAgo: ${daysAgo}, WinRate: ${closed_trades_overview.win_rate_percent}, NetPL: ${general_performance.net_sol}, AvgTradingTime: ${overall_mean_delta / 60}`
+        );
+      
+        return isValid;
+      });
+      
+      results.push(...validResults);
+
+      // Send progress update every 2-3 batches
+      if ((i + 1) % 2 === 0 || i === totalBatches - 1) {
+        const progress = Math.round(((i + 1) / totalBatches) * 100);
+        await ctx.reply(`🔄 Procesando... ${progress}% completado.`);
+      }
       }
       
       // Send results to the user
       if (results.length === 0) {
-        await ctx.reply('❌ *No se encontraron wallets que cumplan con tus condiciones.*', { parse_mode: 'Markdown' });
+      await ctx.reply('❌ *No se encontraron wallets que cumplan con tus condiciones.*', { parse_mode: 'Markdown' });
       } else {
-        const responseText = results
-          .map((result) =>
-            `💼 *Wallet:* \`${result.wallet_address}\`\n` +
-            `📊 *Tokens Tradeados:* ${result.summary.general_performance.tokens_traded}\n` +
-            `💰 *Ganancia Neta (SOL):* ${result.summary.general_performance.net_sol.toFixed(2)}\n` +
-            `🏆 *Win Rate:* ${result.summary.closed_trades_overview.win_rate_percent}%\n` +
-            `⏱️ *Avg Trading Time:* ${(result.summary.deltas.overall_mean_delta / 60).toFixed(2)} minutos\n` +
-            `📅 *Último Trade:* ${result.summary.general_performance.last_trade_timestamp}`
-          )
-          .join('\n\n');
+      const responseText = results
+        .map((result) =>
+        `💼 *Wallet:* \`${result.wallet_address}\`\n` +
+        `📊 *Tokens Tradeados:* ${result.summary.general_performance.tokens_traded}\n` +
+        `💰 *Ganancia Neta (SOL):* ${result.summary.general_performance.net_sol.toFixed(2)}\n` +
+        `🏆 *Win Rate:* ${result.summary.closed_trades_overview.win_rate_percent}%\n` +
+        `⏱️ *Avg Trading Time:* ${(result.summary.deltas.overall_mean_delta / 60).toFixed(2)} minutos\n` +
+        `📅 *Último Trade:* ${result.summary.general_performance.last_trade_timestamp}`
+        )
+        .join('\n\n');
       
-        console.log('Final valid results:', results); // Log final valid results for debugging
-        await ctx.reply(`✅ *Resultados procesados:*\n\n${responseText}`, { parse_mode: 'Markdown' });
+      console.log('Final valid results:', results); // Log final valid results for debugging
+      await ctx.reply(`✅ *Resultados procesados:*\n\n${responseText}`, { parse_mode: 'Markdown' });
       }
       
     });
