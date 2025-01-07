@@ -38,6 +38,7 @@ let userConditions = readConditions();
 // Función para procesar un batch de wallets
 async function processBatch(wallets, ctx) {
   try {
+    // Hacer la llamada para procesar el batch
     const batchResponse = await axios.post(
       'https://api.dedge.pro/process_wallet_batch',
       { wallet_addresses: wallets },
@@ -51,7 +52,7 @@ async function processBatch(wallets, ctx) {
       const statusData = statusResponse.data;
 
       if (statusData.status === 'processing') {
-        await new Promise((resolve) => setTimeout(resolve, 15000)); // Esperar 5 segundos
+        await new Promise((resolve) => setTimeout(resolve, 15000));
         continue;
       }
 
@@ -60,10 +61,14 @@ async function processBatch(wallets, ctx) {
       }
 
       if (statusData.status === 'error') {
-        if (statusData.error === 'Daily limit exceeded for motus. Maximum 400 requests per day.') {
+        // Si el error es dirección inválida, logueamos y devolvemos un array vacío
+        if (statusData.error === 'Invalid wallet address') {
+          console.error(`Batch con wallets inválidas: ${wallets.join(', ')}`);
+          return [];
+        } else if (statusData.error === 'Daily limit exceeded for motus. Maximum 400 requests per day.') {
           await ctx.reply(
             '⚠️ *Límite diario excedido:*\n' +
-            'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera a que se restablezca el límite o intenta nuevamente mañana.',
+            'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera para intentarlo más tarde.',
             { parse_mode: 'Markdown' }
           );
         } else {
@@ -73,14 +78,19 @@ async function processBatch(wallets, ctx) {
       }
     }
   } catch (error) {
+    // Manejo de errores inesperados
     if (
       error.response?.data?.detail === 'Daily limit exceeded for motus. Maximum 400 requests per day.'
     ) {
       await ctx.reply(
         '⚠️ *Límite diario excedido:*\n' +
-        'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera a que se restablezca el límite o intenta nuevamente mañana.',
+        'Se ha alcanzado el máximo de 400 solicitudes diarias. Por favor, espera para intentarlo más tarde.',
         { parse_mode: 'Markdown' }
       );
+    } else if (error.response?.data?.detail === 'Invalid wallet address') {
+      console.error(`Batch con wallets inválidas: ${wallets.join(', ')}`);
+      // Simplemente retornamos un array vacío y seguimos con el resto
+      return [];
     } else {
       console.error('Error al procesar el batch:', error.response?.data || error.message);
       await ctx.reply(
