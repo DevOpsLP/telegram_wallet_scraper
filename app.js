@@ -112,7 +112,10 @@ const scrapeScene = new WizardScene(
   async (ctx) => {
     const userId = ctx.from.id.toString();
     const config = userConditions[userId];
-    const wallets = ctx.message.text.split('\n').map((wallet) => wallet.trim());
+    const wallets = ctx.message.text
+    .split('\n')
+    .map((wallet) => wallet.trim())
+    .filter((wallet) => wallet !== '');
     const batchSize = 5;
 
     // Split wallets into batches of size 5
